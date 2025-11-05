@@ -1,0 +1,133 @@
+parameters:
+- name: environment
+  displayName: 'Environment to deploy'
+  type: string
+  default: 'dev'
+  values:
+  - 'dev'
+
+- name: Action
+  displayName: Action
+  type: string
+  default: 'Apply'
+  values:
+  - Plan
+  - Apply
+  - Destroy
+
+- name: buildDocker
+  displayName: 'Build Docker Image'
+  type: boolean
+  default: false
+
+# Define build name format
+name: '[${{ parameters.environment }}] $(BuildDefinitionName)_$(Date:yyyyMMdd)$(Rev:.rr)'
+
+# Trigger on PR to main (for Plan)
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+      - pipelines/**
+
+# Trigger on merge to main (for Apply)
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: terraform_version
+    value: '1.13.4'
+  - name: action
+    value: ${{ parameters.Action }}
+  - name: dockerfile
+    value: '$(Build.SourcesDirectory)/slack-holmes-bot/Dockerfile'
+  - name: repository
+    value: 'slack-holmes-bot'
+  - name: terraform_working_directory
+    value: '$(Build.SourcesDirectory)/terraform'
+  - name: docker_working_directory
+    value: '$(Build.SourcesDirectory)/slack-holmes-bot'
+  - name: backend_resource_group
+    value: 'YOUR_BACKEND_RESOURCE_GROUP' # TODO: Replace this with your Terraform backend resource group name
+  - name: backend_container
+    value: 'tfstate'
+
+  # Set environment-specific variables based on the selected parameter
+  - ${{ if eq(parameters.environment, 'dev') }}:
+    - name: env_displayName
+      value: 'Development'
+    - name: env_path
+      value: 'environments/dev'
+    - name: env_serviceConnection
+      value: 'YOUR_AZURE_SERVICE_CONNECTION_NAME' # TODO: Replace this with your Azure DevOps service connection name
+    - name: env_subscriptionId
+      value: 'YOUR_AZURE_SUBSCRIPTION_ID' # TODO: Replace this with your Azure subscription ID
+    - name: backend_storageaccount
+      value: 'YOUR_BACKEND_STORAGE_ACCOUNT' # TODO: Replace this with your Terraform backend storage account name
+    - name: backend_statefile
+      value: 'robusta-alerting-dev.tfstate'
+    - name: containerRegistry
+      value: 'YOUR_ACR_NAME' # TODO: Replace this with your Azure Container Registry name (will be created by Terraform)
+
+stages:
+  # Stage 1: Terraform Init, Validate & Plan (runs on PRs and manual triggers)
+  - stage: Terraform_Plan
+    displayName: 'Terraform Plan - ${{ parameters.environment }}'
+    condition: ne('${{ parameters.Action }}', 'Destroy')
+    jobs:
+      - template: templates/terraform-apply.yml
+        parameters:
+          serviceConnection: $(env_serviceConnection)
+          env_path: $(env_path)
+          subscriptionId: $(env_subscriptionId)
+          backend_storageaccount: $(backend_storageaccount)
+          backend_statefile: $(backend_statefile)
+          workingDirectory: $(terraform_working_directory)
+          terraformVersion: $(terraform_version)
+
+  # Terraform Destroy Stage
+  - stage: Terraform_Destroy
+    displayName: 'Terraform Destroy - ${{ parameters.environment }}'
+    condition: eq('${{ parameters.Action }}', 'Destroy')
+    jobs:
+      - template: templates/terraform-destroy.yml
+        parameters:
+          serviceConnection: $(env_serviceConnection)
+          env_path: $(env_path)
+          subscriptionId: $(env_subscriptionId)
+          backend_storageaccount: $(backend_storageaccount)
+          backend_statefile: $(backend_statefile)
+          workingDirectory: $(terraform_working_directory)
+          terraformVersion: $(terraform_version)
+          job_name: 'terraform_destroy_${{ parameters.environment }}'
+
+  # Stage 3: Docker Build (only runs after apply on main branch)
+  - stage: Docker_Build
+    displayName: 'Build & Push Docker Image'
+    dependsOn: Terraform_Plan
+    condition: |
+      and(
+        eq(${{ parameters.buildDocker }}, true),
+        eq('${{ parameters.Action }}', 'Apply'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+        succeeded()
+      )
+    jobs:
+      - template: templates/docker.yml
+        parameters:
+          serviceConnection: $(env_serviceConnection)
+          dockerfile: $(dockerfile)
+          repository: $(repository)
+          workingDirectory: $(docker_working_directory)
+          containerRegistry: $(containerRegistry)

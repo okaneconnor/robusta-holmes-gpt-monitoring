@@ -1,0 +1,33 @@
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: dockerfile
+    type: string
+  - name: repository
+    type: string
+  - name: workingDirectory
+    type: string
+  - name: containerRegistry
+    type: string
+
+jobs:
+  - job: Build
+    displayName: Build job
+    steps:
+      - task: AzureCLI@2
+        displayName: 'Login to ACR and Build Image'
+        condition: and(succeeded(), eq(variables['Action'], 'Apply'))
+        inputs:
+          azureSubscription: '${{ parameters.serviceConnection }}'
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            # Login to ACR
+            az acr login --name ${{ parameters.containerRegistry }}
+            ACR_LOGIN_SERVER=$(az acr show --name ${{ parameters.containerRegistry }} --query loginServer --output tsv)
+
+            # Build and push Docker image
+
+            docker build -t $ACR_LOGIN_SERVER/${{ parameters.repository }}:latest -f ${{ parameters.dockerfile }} .
+            docker push $ACR_LOGIN_SERVER/${{ parameters.repository }}:latest
+          workingDirectory: '${{ parameters.workingDirectory }}'

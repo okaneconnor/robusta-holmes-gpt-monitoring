@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-holmes-bot
+  namespace: slack-holmes-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slack-holmes-bot
+  template:
+    metadata:
+      labels:
+        app: slack-holmes-bot
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: slack-holmes-bot-sa
+      containers:
+      - name: bot
+        image: acrrobustadev.azurecr.io/slack-holmes-bot:latest
+        imagePullPolicy: Always
+        env:
+        - name: SLACK_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slack-holmes-bot-tokens
+              key: slack-bot-token
+        - name: SLACK_APP_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: slack-holmes-bot-tokens
+              key: slack-app-token
+        - name: HOLMES_API_URL
+          value: "http://holmesgpt-holmes.holmesgpt.svc.cluster.local:80"
+        - name: HOLMES_MODEL
+          value: "azure-gpt4o"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        volumeMounts:
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+      volumes:
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: slack-holmes-bot-keyvault-sync

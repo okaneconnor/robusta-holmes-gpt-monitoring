@@ -1,0 +1,42 @@
+# Robusta Helm Values Configuration
+# Documentation: https://docs.robusta.dev/master/configuration/sinks/slack.html
+
+# Cluster name for identification in alerts
+# TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+clusterName: "YOUR_AKS_CLUSTER_NAME"
+
+globalConfig:
+  # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+  cluster_name: "YOUR_AKS_CLUSTER_NAME"
+
+# Slack Sink Configuration
+# The API key will be stored in a Kubernetes secret separately
+sinksConfig:
+  - slack_sink:
+      name: main_slack_sink
+      api_key: "" 
+      slack_channel: "alerts-aks-dev"
+
+      max_log_file_limit_kb: 1000
+
+      investigate_link: true
+
+runner:
+  # Resources for the runner pod
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# Playbook Repository (optional custom playbooks)
+playbooksRepos: {}
+
+# Additional custom playbooks (optional)
+customPlaybooks: []
+
+# Enable/Disable default playbooks
+disableCloudWatchLogs: false
+enableAIAnalysis: false  # Requires Robusta SaaS account

@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: holmesgpt-values
+  namespace: holmesgpt
+data:
+  values.yaml: |
+    # Holmes GPT Helm Values Configuration
+    # Managed by Flux GitOps
+
+    # Service Account with Workload Identity
+    serviceAccount:
+      create: false
+      name: holmesgpt-holmes-service-account
+
+    # Azure OpenAI Configuration
+    additionalEnvVars:
+    - name: CLUSTER_NAME
+      value: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+    - name: AZURE_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: holmesgpt-azure-openai
+          key: azure-api-key
+    - name: AZURE_API_BASE
+      value: "YOUR_OPENAI_ENDPOINT" # TODO: Replace this with your Azure OpenAI endpoint (output from Terraform, e.g., https://cog-openai-dev.openai.azure.com/)
+    - name: AZURE_API_VERSION
+      value: "2024-02-15-preview"
+    - name: AZURE_DEPLOYMENT_NAME
+      value: "gpt-4o"
+
+    # Model Configuration for Azure OpenAI
+    modelList:
+      azure-gpt4o:
+        api_key: "{{ env.AZURE_API_KEY }}"
+        model: "azure/gpt-4o"
+        api_base: "{{ env.AZURE_API_BASE }}"
+        api_version: "{{ env.AZURE_API_VERSION }}"
+        temperature: 0
+
+    # Pod Configuration
+    podLabels:
+      azure.workload.identity/use: "true"
+
+    # Volume Mounts for CSI Secret Store
+    additionalVolumes:
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: holmesgpt-keyvault-sync
+
+    additionalVolumeMounts:
+      - name: secrets-store
+        mountPath: "/mnt/secrets-store"
+        readOnly: true
+
+    # Resource Limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # Readiness and Liveness Probes
+    livenessProbe:
+      enabled: true
+      httpGet:
+        path: /health
+        port: 80
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+    readinessProbe:
+      enabled: true
+      httpGet:
+        path: /health
+        port: 80
+      initialDelaySeconds: 10
+      periodSeconds: 5

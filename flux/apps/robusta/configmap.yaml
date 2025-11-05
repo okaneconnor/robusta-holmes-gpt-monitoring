@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: robusta-values
+  namespace: robusta
+data:
+  values.yaml: |
+    # Robusta Helm Values Configuration
+    # Managed by Flux GitOps
+
+    # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+    clusterName: "YOUR_AKS_CLUSTER_NAME"
+
+    globalConfig:
+      cluster_name: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+
+    sinksConfig:
+      - slack_sink:
+          name: main_slack_sink
+          api_key: ""  # Injected from Secret via Flux
+          slack_channel: "aks-alerts"
+          max_log_file_limit_kb: 1000
+          investigate_link: true
+
+    # Enable built-in monitoring
+    enablePrometheusStack: false
+    enablePlatformPlaybooks: true  # Enable all built-in playbooks
+
+    # Disable built-in Holmes - using standalone Holmes in holmesgpt namespace for custom Slack bot
+    enableHolmesGPT: false
+
+    runner:
+      serviceAccountName: robusta-sa
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      additionalVolumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: robusta-keyvault-sync
+      additionalVolumeMounts:
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+
+    disableCloudWatchLogs: false
+    enableAIAnalysis: false

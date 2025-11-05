@@ -1,0 +1,243 @@
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: env_path
+    type: string
+  - name: subscriptionId
+    type: string
+  - name: backend_storageaccount
+    type: string
+  - name: backend_statefile
+    type: string
+  - name: workingDirectory
+    type: string
+  - name: terraformVersion
+    type: string
+
+jobs:
+- job: terraform_init
+  displayName: 'Terraform Init'
+  steps:
+  - checkout: self
+    displayName: 'Checkout repository'
+
+  - task: TerraformInstaller@1
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Init'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        echo "Setting ARM environment variables..."
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        echo "ARM_CLIENT_ID: $ARM_CLIENT_ID"
+        echo "ARM_TENANT_ID: $ARM_TENANT_ID"
+        echo "ARM_SUBSCRIPTION_ID: $ARM_SUBSCRIPTION_ID"
+
+        echo ""
+        echo "=== Terraform Init ==="
+        # TODO: Replace this with your Terraform backend resource group name
+        terraform init \
+          -backend-config="resource_group_name=YOUR_BACKEND_RESOURCE_GROUP" \
+          -backend-config="storage_account_name=${{ parameters.backend_storageaccount }}" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=${{ parameters.backend_statefile }}" \
+          -backend-config="use_azuread_auth=true"
+
+- job: terraform_validate
+  displayName: 'Terraform Validate'
+  dependsOn: terraform_init
+  steps:
+  - checkout: self
+    displayName: 'Checkout repository'
+
+  - task: TerraformInstaller@1
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Init (for validate)'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        terraform init \
+          -backend-config="resource_group_name=YOUR_BACKEND_RESOURCE_GROUP" \
+          -backend-config="storage_account_name=${{ parameters.backend_storageaccount }}" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=${{ parameters.backend_statefile }}" \
+          -backend-config="use_azuread_auth=true"
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Validate'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        echo "=== Terraform Validate ==="
+        terraform validate
+
+- job: terraform_plan
+  displayName: 'Terraform Plan'
+  dependsOn: terraform_validate
+  steps:
+  - checkout: self
+    displayName: 'Checkout repository'
+
+  - task: TerraformInstaller@1
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Init (for plan)'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        terraform init \
+          -backend-config="resource_group_name=YOUR_BACKEND_RESOURCE_GROUP" \
+          -backend-config="storage_account_name=${{ parameters.backend_storageaccount }}" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=${{ parameters.backend_statefile }}" \
+          -backend-config="use_azuread_auth=true"
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Plan'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        echo "=== Terraform Plan ==="
+        terraform plan \
+          -var-file=${{ parameters.env_path }}/terraform.tfvars \
+          -input=false \
+          -out=tfplan
+
+  # Publish the plan file as a pipeline artifact
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Terraform Plan'
+    inputs:
+      targetPath: '${{ parameters.workingDirectory }}/tfplan'
+      artifact: 'terraform-plan'
+      publishLocation: 'pipeline'
+
+- job: terraform_apply
+  displayName: 'Terraform Apply'
+  dependsOn: terraform_plan
+  condition: and(succeeded(), eq(variables['Action'], 'Apply'))
+  steps:
+  - checkout: self
+    displayName: 'Checkout repository'
+
+  - task: TerraformInstaller@1
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  # Download the plan file from previous job
+  - task: DownloadPipelineArtifact@2
+    displayName: 'Download Terraform Plan'
+    inputs:
+      buildType: 'current'
+      artifactName: 'terraform-plan'
+      targetPath: '${{ parameters.workingDirectory }}'
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Init (for apply)'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        terraform init \
+          -backend-config="resource_group_name=YOUR_BACKEND_RESOURCE_GROUP" \
+          -backend-config="storage_account_name=${{ parameters.backend_storageaccount }}" \
+          -backend-config="container_name=tfstate" \
+          -backend-config="key=${{ parameters.backend_statefile }}" \
+          -backend-config="use_azuread_auth=true"
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Apply'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      addSpnToEnvironment: true
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      inlineScript: |
+        set -e
+
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_CLIENT_SECRET=$servicePrincipalKey
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_TENANT_ID=$tenantId
+
+        echo "=== Terraform Apply ==="
+        terraform apply \
+          -input=false \
+          -auto-approve \
+          tfplan

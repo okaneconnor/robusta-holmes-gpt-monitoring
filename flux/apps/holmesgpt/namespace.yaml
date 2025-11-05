@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: holmesgpt
+  labels:
+    name: holmesgpt
+    toolkit.fluxcd.io/tenant: holmesgpt
