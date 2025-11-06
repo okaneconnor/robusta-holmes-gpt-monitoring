@@ -41,7 +41,7 @@ This repository provides a complete Infrastructure as Code (IaC) solution for de
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| **AKS Cluster** | `YOUR_AKS_CLUSTER_NAME` (e.g., aks-mcp-gateway-dev) | Kubernetes cluster with workload identity & OIDC enabled |
+| **AKS Cluster** | `YOUR_AKS_CLUSTER_NAME` (e.g., aks-dev) | Kubernetes cluster with workload identity & OIDC enabled |
 | **Key Vault** | `YOUR_KEYVAULT_NAME` (e.g., kv-robusta-dev) | Secure storage for Slack tokens, API keys |
 | **Container Registry** | `acrrobustadev.azurecr.io` | Private registry for Slack Holmes bot image |
 | **Managed Identity** | `id-workload-dev` | Shared identity for Key Vault access (Client ID: output from Terraform) |

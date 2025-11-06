@@ -43,10 +43,10 @@ resource "azurerm_federated_identity_credential" "slack_holmes_bot" {
 }
 
 resource "azurerm_kubernetes_cluster" "aks_cluster" {
-  name                = "aks-mcp-gateway-${var.resource_label}"
+  name                = "aks-${var.resource_label}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  dns_prefix          = "aks-mcp-${var.resource_label}"
+  dns_prefix          = "aks-${var.resource_label}"
   kubernetes_version  = var.kubernetes_version
 
   default_node_pool {

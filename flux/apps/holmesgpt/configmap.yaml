@@ -16,7 +16,7 @@ data:
     # Azure OpenAI Configuration
     additionalEnvVars:
     - name: CLUSTER_NAME
-      value: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+      value: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-dev)
     - name: AZURE_API_KEY
       valueFrom:
         secretKeyRef:
