@@ -1,5 +1,5 @@
 resource "azurerm_virtual_network" "vnet" {
-  name                = "vnet-mcp-gateway-${var.resource_label}"
+  name                = "vnet-${var.resource_label}"
   location            = var.location
   resource_group_name = var.resource_group_name
   address_space       = var.vnet_address_space

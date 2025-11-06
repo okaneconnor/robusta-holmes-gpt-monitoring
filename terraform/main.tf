@@ -1,4 +1,4 @@
-resource "azurerm_resource_group" "mcp_gateway" {
+resource "azurerm_resource_group" "robusta_rg" {
   name     = "rg-robusta-${var.environment}"
   location = var.location
   tags     = local.common_tags
@@ -14,8 +14,8 @@ module "entra" {
 module "network" {
   source = "./modules/network"
 
-  resource_group_name = azurerm_resource_group.mcp_gateway.name
-  location            = azurerm_resource_group.mcp_gateway.location
+  resource_group_name = azurerm_resource_group.robusta_rg.name
+  location            = azurerm_resource_group.robusta_rg.location
   resource_label      = local.resource_label
   vnet_address_space  = var.vnet_address_space
   tags                = local.common_tags
@@ -24,8 +24,8 @@ module "network" {
 module "aks" {
   source = "./modules/aks"
 
-  resource_group_name = azurerm_resource_group.mcp_gateway.name
-  location            = azurerm_resource_group.mcp_gateway.location
+  resource_group_name = azurerm_resource_group.robusta_rg.name
+  location            = azurerm_resource_group.robusta_rg.location
   resource_label      = local.resource_label
   aks_subnet_id       = module.network.aks_subnet_id
   node_count          = var.aks_node_count
@@ -38,8 +38,8 @@ module "aks" {
 module "keyvault" {
   source = "./modules/keyvault"
 
-  resource_group_name            = azurerm_resource_group.mcp_gateway.name
-  location                       = azurerm_resource_group.mcp_gateway.location
+  resource_group_name            = azurerm_resource_group.robusta_rg.name
+  location                       = azurerm_resource_group.robusta_rg.location
   resource_label                 = local.resource_label
   aks_subnet_id                  = module.network.aks_subnet_id
   aks_kubelet_identity_object_id = module.aks.kubelet_identity_object_id
@@ -51,8 +51,8 @@ module "keyvault" {
 module "openai" {
   source = "./modules/openai"
 
-  resource_group_name            = azurerm_resource_group.mcp_gateway.name
-  location                       = azurerm_resource_group.mcp_gateway.location
+  resource_group_name            = azurerm_resource_group.robusta_rg.name
+  location                       = azurerm_resource_group.robusta_rg.location
   resource_label                 = local.resource_label
   workload_identity_principal_id = module.aks.workload_identity_principal_id
   admin_group_object_id          = module.entra.keyvault_admin_group_id
@@ -65,8 +65,8 @@ module "openai" {
 module "private_endpoint" {
   source = "./modules/private-endpoint"
 
-  resource_group_name        = azurerm_resource_group.mcp_gateway.name
-  location                   = azurerm_resource_group.mcp_gateway.location
+  resource_group_name        = azurerm_resource_group.robusta_rg.name
+  location                   = azurerm_resource_group.robusta_rg.location
   resource_label             = local.resource_label
   private_endpoint_subnet_id = module.network.aks_subnet_id
   openai_account_id          = module.openai.openai_account_id
@@ -79,8 +79,8 @@ module "acr" {
   source = "./modules/acr"
 
   acr_name                       = "acrrobusta${local.resource_label}"
-  resource_group_name            = azurerm_resource_group.mcp_gateway.name
-  location                       = azurerm_resource_group.mcp_gateway.location
+  resource_group_name            = azurerm_resource_group.robusta_rg.name
+  location                       = azurerm_resource_group.robusta_rg.location
   sku                            = "Basic"
   aks_kubelet_identity_object_id = module.aks.kubelet_identity_object_id
   tags                           = local.common_tags

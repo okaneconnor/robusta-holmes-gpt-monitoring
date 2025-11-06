@@ -8,11 +8,11 @@ data:
     # Robusta Helm Values Configuration
     # Managed by Flux GitOps
 
-    # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+    # TODO: Replace this with your AKS cluster name (e.g., aks-dev)
     clusterName: "YOUR_AKS_CLUSTER_NAME"
 
     globalConfig:
-      cluster_name: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+      cluster_name: "YOUR_AKS_CLUSTER_NAME" # TODO: Replace this with your AKS cluster name (e.g., aks-dev)
 
     sinksConfig:
       - slack_sink:

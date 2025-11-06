@@ -2,11 +2,11 @@
 # Documentation: https://docs.robusta.dev/master/configuration/sinks/slack.html
 
 # Cluster name for identification in alerts
-# TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+# TODO: Replace this with your AKS cluster name (e.g., aks-dev)
 clusterName: "YOUR_AKS_CLUSTER_NAME"
 
 globalConfig:
-  # TODO: Replace this with your AKS cluster name (e.g., aks-mcp-gateway-dev)
+  # TODO: Replace this with your AKS cluster name (e.g., aks-dev)
   cluster_name: "YOUR_AKS_CLUSTER_NAME"
 
 # Slack Sink Configuration
